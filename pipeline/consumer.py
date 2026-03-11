@@ -4,7 +4,7 @@ import os
 import time
 
 import paho.mqtt.client as mqtt
-from influxdb_client import InfluxDBClient, Point, WritePrecision
+from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 
 from weather import get_external_weather
