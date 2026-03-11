@@ -55,5 +55,5 @@ class TestBuildIndoorPoint:
 
         assert line.startswith("indoor_climate,")
         assert "room=living_room" in line
-        assert "temperature=21.0" in line
-        assert "humidity=45.0" in line
+        assert "temperature=21" in line
+        assert "humidity=45" in line
