@@ -1,0 +1,289 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Comfort Score",
+      "description": "% of readings in last 24h where temperature is 20-24C AND humidity is 40-60%",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 40 },
+              { "color": "green", "value": 70 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "" },
+          "query": "total = from(bucket: \"sensors\")\n  |> range(start: -24h)\n  |> filter(fn: (r) => r._measurement == \"indoor_climate\")\n  |> filter(fn: (r) => r._field == \"temperature\")\n  |> count()\n  |> findRecord(fn: (key) => true, idx: 0)\n\ncomfort = from(bucket: \"sensors\")\n  |> range(start: -24h)\n  |> filter(fn: (r) => r._measurement == \"indoor_climate\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> filter(fn: (r) => r.temperature >= 20.0 and r.temperature <= 24.0 and r.humidity >= 40.0 and r.humidity <= 60.0)\n  |> count(column: \"temperature\")\n  |> findRecord(fn: (key) => true, idx: 0)\n\nfrom(bucket: \"sensors\")\n  |> range(start: -24h)\n  |> filter(fn: (r) => r._measurement == \"indoor_climate\")\n  |> filter(fn: (r) => r._field == \"temperature\")\n  |> last()\n  |> map(fn: (r) => ({r with _value: float(v: comfort.temperature) / float(v: total._value) * 100.0}))"
+        }
+      ],
+      "datasource": { "type": "influxdb" }
+    },
+    {
+      "id": 2,
+      "title": "Avg Temperature (24h)",
+      "description": "Mean indoor temperature over the last 24 hours",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "decimals": 1,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "blue", "value": null },
+              { "color": "green", "value": 18 },
+              { "color": "orange", "value": 24 },
+              { "color": "red", "value": 28 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "" },
+          "query": "from(bucket: \"sensors\")\n  |> range(start: -24h)\n  |> filter(fn: (r) => r._measurement == \"indoor_climate\")\n  |> filter(fn: (r) => r._field == \"temperature\")\n  |> mean()"
+        }
+      ],
+      "datasource": { "type": "influxdb" }
+    },
+    {
+      "id": 3,
+      "title": "Mold Risk Hours",
+      "description": "Hours in the last 24h where indoor humidity exceeded 60%",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "decimals": 1,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 2 },
+              { "color": "red", "value": 6 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "" },
+          "query": "from(bucket: \"sensors\")\n  |> range(start: -24h)\n  |> filter(fn: (r) => r._measurement == \"indoor_climate\")\n  |> filter(fn: (r) => r._field == \"humidity\")\n  |> filter(fn: (r) => r._value > 60.0)\n  |> count()\n  |> map(fn: (r) => ({r with _value: float(v: r._value) / 60.0}))"
+        }
+      ],
+      "datasource": { "type": "influxdb" }
+    },
+    {
+      "id": 4,
+      "title": "Heating Efficiency",
+      "description": "Average indoor-outdoor temperature delta over 24h. Higher = better insulation.",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "decimals": 1,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "blue", "value": null },
+              { "color": "green", "value": 3 },
+              { "color": "orange", "value": 8 },
+              { "color": "red", "value": 12 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "textMode": "auto" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "" },
+          "query": "from(bucket: \"sensors\")\n  |> range(start: -24h)\n  |> filter(fn: (r) => r._measurement == \"climate_delta\")\n  |> filter(fn: (r) => r._field == \"temperature_delta\")\n  |> mean()"
+        }
+      ],
+      "datasource": { "type": "influxdb" }
+    },
+    {
+      "id": 5,
+      "title": "Daily Temperature Range",
+      "description": "Daily min, mean, and max indoor temperature over 7 days",
+      "type": "timeseries",
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "pointSize": 5,
+            "showPoints": "always",
+            "spanNulls": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byFrameRefID", "options": "A" },
+            "properties": [
+              { "id": "displayName", "value": "Mean" },
+              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byFrameRefID", "options": "B" },
+            "properties": [
+              { "id": "displayName", "value": "Min" },
+              { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } }
+            ]
+          },
+          {
+            "matcher": { "id": "byFrameRefID", "options": "C" },
+            "properties": [
+              { "id": "displayName", "value": "Max" },
+              { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "" },
+          "query": "from(bucket: \"sensors\")\n  |> range(start: -7d)\n  |> filter(fn: (r) => r._measurement == \"indoor_climate\")\n  |> filter(fn: (r) => r._field == \"temperature\")\n  |> aggregateWindow(every: 1d, fn: mean, createEmpty: false)"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "influxdb", "uid": "" },
+          "query": "from(bucket: \"sensors\")\n  |> range(start: -7d)\n  |> filter(fn: (r) => r._measurement == \"indoor_climate\")\n  |> filter(fn: (r) => r._field == \"temperature\")\n  |> aggregateWindow(every: 1d, fn: min, createEmpty: false)"
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "influxdb", "uid": "" },
+          "query": "from(bucket: \"sensors\")\n  |> range(start: -7d)\n  |> filter(fn: (r) => r._measurement == \"indoor_climate\")\n  |> filter(fn: (r) => r._field == \"temperature\")\n  |> aggregateWindow(every: 1d, fn: max, createEmpty: false)"
+        }
+      ],
+      "datasource": { "type": "influxdb" }
+    },
+    {
+      "id": 6,
+      "title": "Comfort Zone Tracking",
+      "description": "Indoor temperature with comfort zone (20-24C) highlighted",
+      "type": "timeseries",
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "auto",
+            "spanNulls": true,
+            "thresholdsStyle": { "mode": "area" }
+          },
+          "color": { "mode": "continuous-BlYlRd" },
+          "thresholds": {
+            "steps": [
+              { "color": "blue", "value": null },
+              { "color": "green", "value": 20 },
+              { "color": "red", "value": 24 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "" },
+          "query": "from(bucket: \"sensors\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"indoor_climate\")\n  |> filter(fn: (r) => r._field == \"temperature\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+        }
+      ],
+      "datasource": { "type": "influxdb" }
+    },
+    {
+      "id": 7,
+      "title": "Humidity Trend (7 days)",
+      "description": "Indoor humidity over 7 days. Comfort zone is 40-60%. Above 60% increases mold risk.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "humidity",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "auto",
+            "spanNulls": true,
+            "thresholdsStyle": { "mode": "line" }
+          },
+          "color": { "fixedColor": "green", "mode": "fixed" },
+          "thresholds": {
+            "steps": [
+              { "color": "orange", "value": null },
+              { "color": "green", "value": 40 },
+              { "color": "red", "value": 60 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "" },
+          "query": "from(bucket: \"sensors\")\n  |> range(start: -7d)\n  |> filter(fn: (r) => r._measurement == \"indoor_climate\")\n  |> filter(fn: (r) => r._field == \"humidity\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+        }
+      ],
+      "datasource": { "type": "influxdb" }
+    }
+  ],
+  "refresh": "5m",
+  "schemaVersion": 39,
+  "tags": ["apartment", "iot", "kpi"],
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Apartment KPI Insights",
+  "uid": "apartment-kpi"
+}
